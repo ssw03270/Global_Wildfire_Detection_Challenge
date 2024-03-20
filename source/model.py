@@ -262,7 +262,7 @@ class SwinTransformer(nn.Module):
         x = self.decoder([x1, x2, x3, x4])
 
         x = self.upsample(x)
-        x = self.conv1(x)
+        x = self.conv(x)
 
         x = x.reshape(x.shape[0], 1, self.img_size, self.img_size)
         x = x.permute(0, 2, 3, 1)
