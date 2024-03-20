@@ -107,8 +107,8 @@ class Trainer:
                                                     num_training_steps=num_train_steps)
 
     def compute_metrics(self, pred, trg):
-        preds = (pred >= 0.5).float()
-        labels = trg
+        preds = (pred >= 0.5).bool()
+        labels = trg.bool()
 
         smooth = 1e-6
 
