@@ -249,8 +249,8 @@ class SwinTransformer(nn.Module):
         self.decoder = UNetDecoder([768, 384, 192, 96])
         self.img_size = img_size
 
-        self.upsample = nn.Upsample(size=(self.img_size, self.img_size), mode='bilinear', align_corners=True)
-        self.conv = nn.Conv2d(in_channels=96, out_channels=1, kernel_size=3, stride=1, padding=1)
+        self.up = nn.ConvTranspose2d(96, 48, kernel_size=2, stride=2)
+        self.conv = nn.Conv2d(in_channels=48, out_channels=1, kernel_size=3, stride=1, padding=1)
 
     def forward(self, img):
         img = img.permute(0, 3, 1, 2)
@@ -261,7 +261,7 @@ class SwinTransformer(nn.Module):
 
         x = self.decoder([x1, x2, x3, x4])
 
-        x = self.upsample(x)
+        x = self.up(x)
         x = self.conv(x)
 
         x = x.reshape(x.shape[0], 1, self.img_size, self.img_size)
