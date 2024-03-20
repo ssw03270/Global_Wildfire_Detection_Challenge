@@ -106,11 +106,13 @@ class Trainer:
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
                                                     num_training_steps=num_train_steps)
 
-    def compute_metrics(self, logits, mask):
+    def compute_metrics(state, image, mask):
+        logits = state(image)
+
         preds = torch.sigmoid(logits) > 0.5
         labels = mask
 
-        smooth = 1e-6  # LOSS.smooth 대신 작은 값으로 smooth 설정
+        smooth = 1e-6
 
         tp = torch.sum((preds == 1) & (labels == 1)).float()
         fp = torch.sum((preds == 1) & (labels == 0)).float()
@@ -120,12 +122,13 @@ class Trainer:
         precision = tp / (tp + fp + smooth)
         recall = tp / (tp + fn + smooth)
 
-        union0 = torch.clamp((1 - preds) + (1 - labels), min=0, max=1)
-        intersection0 = (1 - preds) * (1 - labels)
+        # 여기에서 수정됨: `-` 연산자 대신 `~` 사용
+        union0 = torch.clamp((~preds).float() + (~labels).float(), min=0, max=1)
+        intersection0 = (~preds).float() * (~labels).float()
         iou0 = torch.sum(intersection0) / (torch.sum(union0) + smooth)
 
-        union1 = torch.clamp(preds + labels, min=0, max=1)
-        intersection1 = preds * labels
+        union1 = torch.clamp(preds.float() + labels.float(), min=0, max=1)
+        intersection1 = preds.float() * labels.float()
         iou1 = torch.sum(intersection1) / (torch.sum(union1) + smooth)
 
         miou = (iou0 + iou1) / 2
