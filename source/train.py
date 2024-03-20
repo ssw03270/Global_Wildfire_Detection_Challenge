@@ -105,7 +105,7 @@ class Trainer:
         - Tensor: The computed focal loss.
         """
         # Sigmoid 활성화를 통해 예측 확률을 계산
-        pred_prob = torch.sigmoid(pred)
+        pred_prob = pred
         # 이진 크로스 엔트로피 계산
         bce = F.binary_cross_entropy(pred_prob, trg, reduction='none')
         # Focal Loss 계산
