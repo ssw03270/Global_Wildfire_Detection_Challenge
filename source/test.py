@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
             output = transformer(input_img)
             output = output.detach().cpu().numpy()
-            output = np.where(output[0, :, :, 0] > 0.5, 1, 0)
+            output = np.where(output[0, :, :, 0] > 0.25, 1, 0)
             output = output.astype(np.uint8)
 
             key_name = data['key_name'][0]

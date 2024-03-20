@@ -256,9 +256,9 @@ class Trainer:
                 output = self.transformer(input_img)
 
                 # bce = self.cross_entropy_loss(output, output_img.detach())
-                # focal = self.focal_loss(output, output_img.detach())
-                dice = self.dice_loss(output, output_img.detach())
-                loss = dice
+                focal = self.focal_loss(output, output_img.detach())
+                # dice = self.dice_loss(output, output_img.detach())
+                loss = focal
                 correct, problem = self.correct_data(output.detach(), output_img.detach())
                 _, _, _, _, miou = self.compute_metrics(output.detach(), output_img.detach())
 
@@ -307,9 +307,9 @@ class Trainer:
                         output = self.transformer(input_img)
 
                         # bce = self.cross_entropy_loss(output.detach(), output_img.detach())
-                        # focal = self.focal_loss(output.detach(), output_img.detach())
-                        dice = self.dice_loss(output.detach(), output_img.detach())
-                        loss = dice
+                        focal = self.focal_loss(output.detach(), output_img.detach())
+                        # dice = self.dice_loss(output.detach(), output_img.detach())
+                        loss = focal
                         correct, problem = self.correct_data(output.detach(), output_img.detach())
                         _, _, _, _, miou = self.compute_metrics(output.detach(), output_img.detach())
 
