@@ -187,7 +187,7 @@ class Trainer:
 
                 output = self.transformer(input_img)
 
-                exist_loss = self.focal_loss(output, output_img.detach())
+                exist_loss = self.cross_entropy_loss(output, output_img.detach())
                 loss = exist_loss
                 correct, problem = self.correct_data(output.detach(), output_img.detach())
 
@@ -229,7 +229,7 @@ class Trainer:
 
                         output = self.transformer(input_img)
 
-                        exist_loss = self.focal_loss(output.detach(), output_img.detach())
+                        exist_loss = self.cross_entropy_loss(output.detach(), output_img.detach())
                         loss = exist_loss
                         correct, problem = self.correct_data(output.detach(), output_img.detach())
 
