@@ -268,7 +268,7 @@ class Trainer:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Initialize a transformer with user-defined hyperparameters.")
 
-    parser.add_argument("--batch_size", type=int, default=1, help="The batch size used during training.")
+    parser.add_argument("--batch_size", type=int, default=32, help="The batch size used during training.")
     parser.add_argument("--max_epoch", type=int, default=1000, help="The maximum number of epochs to train for.")
     parser.add_argument("--d_model", type=int, default=512, help="The dimensionality of the model's embeddings.")
     parser.add_argument("--n_layer", type=int, default=6, help="The number of layers in the transformer model.")
