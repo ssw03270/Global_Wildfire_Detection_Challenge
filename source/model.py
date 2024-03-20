@@ -268,8 +268,6 @@ class SwinTransformer(nn.Module):
         x = x.permute(0, 2, 3, 1)
         x = torch.sigmoid(x)
 
-        print(x[0])
-
         return x
 
 
