@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 import torch.distributed as dist
+from transformers.optimization import AdamW, get_cosine_schedule_with_warmup
 
 import numpy as np
 import random
@@ -87,9 +88,23 @@ class Trainer:
         ).to(device=self.device)
         self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[local_rank])
 
-        self.optimizer = torch.optim.Adam(self.transformer.module.parameters(),
-                                          lr=self.lr,
-                                          betas=(0.9, 0.98))
+        # optimizer
+        param_optimizer = list(self.transformer.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        self.optimizer = AdamW(optimizer_grouped_parameters, lr=self.lr, correct_bias=False, no_deprecation_warning=True)
+
+        # scheduler
+        data_len = len(self.train_dataloader)
+        num_train_steps = int(data_len / batch_size * self.max_epoch)
+        num_warmup_steps = int(num_train_steps * 0.1)
+        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
+                                                    num_training_steps=num_train_steps)
 
     def dice_loss(self, pred, trg):
         """
@@ -221,6 +236,7 @@ class Trainer:
 
                 loss.backward()
                 self.optimizer.step()
+                self.scheduler.step()
 
                 dist.all_reduce(loss, op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(correct), op=dist.ReduceOp.SUM)
@@ -251,7 +267,6 @@ class Trainer:
 
                 with torch.no_grad():
                     for data in self.val_dataloader:
-
                         input_img = data['input_img'].to(device=self.device)
                         output_img = data['output_img'].to(device=self.device)
 
