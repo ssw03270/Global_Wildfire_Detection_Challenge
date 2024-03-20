@@ -285,7 +285,7 @@ if __name__ == '__main__':
                         help="Frequency (in epochs) with which to perform validation.")
     parser.add_argument("--save_epoch", type=int, default=10,
                         help="Frequency (in epochs) with which to save model checkpoints.")
-    parser.add_argument("--local-rank", type=int,
+    parser.add_argument("--local_rank", type=int,
                         help="The local rank of the process for distributed training. Required for multi-GPU setups.")
     parser.add_argument("--save_dir_path", type=str, default="transformer_graph",
                         help="Directory path where model checkpoints will be saved")
