@@ -231,7 +231,7 @@ class Trainer:
                         output = self.transformer(input_img)
 
                         bce = self.cross_entropy_loss(output.detach(), output_img.detach())
-                        focal = self.focal(output.detach(), output_img.detach())
+                        focal = self.focal_loss(output.detach(), output_img.detach())
                         loss = bce + focal
                         correct, problem = self.correct_data(output.detach(), output_img.detach())
 
