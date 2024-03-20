@@ -21,6 +21,8 @@ class ImageDatasets(Dataset):
 
         self.input_folder_path = f'../dataset/train_img/'
         self.output_folder_path = f'../dataset/train_mask/'
+        self.input_folder_path = f'/local_datasets/wildfire/train_img/'
+        self.output_folder_path = f'/local_datasets/wildfire/train_mask/'
 
         self.input_files = [f for f in os.listdir(self.input_folder_path) if f.endswith('.tif')]
         self.output_files = [f for f in os.listdir(self.output_folder_path) if f.endswith('.tif')]
