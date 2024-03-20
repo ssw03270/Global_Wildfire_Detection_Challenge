@@ -19,10 +19,12 @@ class ImageDatasets(Dataset):
 
         self.data_type = data_type
 
-        self.input_folder_path = f'../dataset/train_img/'
-        self.output_folder_path = f'../dataset/train_mask/'
         self.input_folder_path = f'/local_datasets/wildfire/train_img/'
         self.output_folder_path = f'/local_datasets/wildfire/train_mask/'
+
+        if data_type == 'test':
+            self.input_folder_path = f'../dataset/test_img/'
+            self.output_folder_path = f'../dataset/test_img/'
 
         self.input_files = [f for f in os.listdir(self.input_folder_path) if f.endswith('.tif')]
         self.output_files = [f for f in os.listdir(self.output_folder_path) if f.endswith('.tif')]
@@ -65,7 +67,7 @@ class ImageDatasets(Dataset):
             img = rasterio.open(load_path).read().transpose((1, 2, 0))
             output_img = np.float32(img) / MAX_PIXEL_VALUE
 
-        return {'input_img': input_img, 'output_img': output_img}
+        return {'input_img': input_img, 'output_img': output_img, 'key_name': self.input_files[idx]}
 
 
     def __len__(self):

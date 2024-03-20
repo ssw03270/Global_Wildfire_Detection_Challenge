@@ -91,6 +91,29 @@ class Trainer:
                                           lr=self.lr,
                                           betas=(0.9, 0.98))
 
+    def focal_loss(self, pred, trg, alpha=0.25, gamma=2.0):
+        """
+        Calculates the focal loss.
+
+        Parameters:
+        - pred (Tensor): Predictions from the model. Assumes binary class predictions with sigmoid activation.
+        - trg (Tensor): Target values (ground truth).
+        - alpha (float): Weighting factor for the rare class.
+        - gamma (float): Focusing parameter for modulating the loss with respect to the confidence.
+
+        Returns:
+        - Tensor: The computed focal loss.
+        """
+        # Sigmoid 활성화를 통해 예측 확률을 계산
+        pred_prob = torch.sigmoid(pred)
+        # 이진 크로스 엔트로피 계산
+        bce = F.binary_cross_entropy(pred_prob, trg, reduction='none')
+        # Focal Loss 계산
+        focal_loss = alpha * (1 - pred_prob) ** gamma * bce
+
+        # 마스크된 위치를 제외하고 평균 손실을 계산
+        return focal_loss.mean()
+
     def cross_entropy_loss(self, pred, trg):
         """
         Calculates the cross-entropy loss with padding mask applied.
@@ -164,7 +187,7 @@ class Trainer:
 
                 output = self.transformer(input_img)
 
-                exist_loss = self.cross_entropy_loss(output, output_img.detach())
+                exist_loss = self.focal_loss(output, output_img.detach())
                 loss = exist_loss
                 correct, problem = self.correct_data(output.detach(), output_img.detach())
 
@@ -206,7 +229,7 @@ class Trainer:
 
                         output = self.transformer(input_img)
 
-                        exist_loss = self.cross_entropy_loss(output.detach(), output_img.detach())
+                        exist_loss = self.focal_loss(output.detach(), output_img.detach())
                         loss = exist_loss
                         correct, problem = self.correct_data(output.detach(), output_img.detach())
 
