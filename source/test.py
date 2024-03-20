@@ -51,7 +51,7 @@ if __name__ == '__main__':
             img_size=256,
             head_dim=32,
             window_size=8,
-            downscaling_factors=(4, 2, 2, 2),
+            downscaling_factors=(2, 2, 2, 2),
             relative_pos_embedding=True
         ).to(device=device)
 
@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
             key_name = data['key_name'][0]
             y_predict[key_name] = output
-            print(output)
+            print(np.sum(output))
 
     joblib.dump(y_predict, './y_pred.pkl')
 

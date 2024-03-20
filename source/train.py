@@ -106,6 +106,31 @@ class Trainer:
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
                                                     num_training_steps=num_train_steps)
 
+    def compute_metrics(self, logits, mask):
+        preds = torch.sigmoid(logits) > 0.5
+        labels = mask
+
+        smooth = 1e-6  # LOSS.smooth 대신 작은 값으로 smooth 설정
+
+        tp = torch.sum((preds == 1) & (labels == 1)).float()
+        fp = torch.sum((preds == 1) & (labels == 0)).float()
+        tn = torch.sum((preds == 0) & (labels == 0)).float()
+        fn = torch.sum((preds == 0) & (labels == 1)).float()
+
+        precision = tp / (tp + fp + smooth)
+        recall = tp / (tp + fn + smooth)
+
+        union0 = torch.clamp((1 - preds) + (1 - labels), min=0, max=1)
+        intersection0 = (1 - preds) * (1 - labels)
+        iou0 = torch.sum(intersection0) / (torch.sum(union0) + smooth)
+
+        union1 = torch.clamp(preds + labels, min=0, max=1)
+        intersection1 = preds * labels
+        iou1 = torch.sum(intersection1) / (torch.sum(union1) + smooth)
+
+        miou = (iou0 + iou1) / 2
+        return precision, recall, iou0, iou1, miou
+
     def dice_loss(self, pred, trg):
         """
         Calculates the Dice loss.
@@ -219,6 +244,7 @@ class Trainer:
             total_loss = torch.Tensor([0.0]).to(self.device)
             total_correct = torch.Tensor([0.0]).to(self.device)
             total_problem = torch.Tensor([0.0]).to(self.device)
+            total_miou = torch.Tensor([0.0]).to(self.device)
 
             for data in tqdm(self.train_dataloader):
                 self.optimizer.zero_grad()
@@ -233,6 +259,7 @@ class Trainer:
                 dice = self.dice_loss(output, output_img.detach())
                 loss = dice
                 correct, problem = self.correct_data(output.detach(), output_img.detach())
+                _, _, _, _, miou = self.compute_metrics(output.detach(), output_img.detach())
 
                 loss.backward()
                 self.optimizer.step()
@@ -241,29 +268,35 @@ class Trainer:
                 dist.all_reduce(loss, op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(correct), op=dist.ReduceOp.SUM)
                 dist.all_reduce(torch.tensor(problem), op=dist.ReduceOp.SUM)
+                dist.all_reduce(miou, op=dist.ReduceOp.SUM)
 
                 total_loss += loss
                 total_correct += correct
                 total_problem += problem
+                total_miou += miou
                 # if self.local_rank == 0:
                 #     print(loss_pos, loss_size, loss_kl)
 
             if self.local_rank == 0:
                 loss_mean = total_loss.item() / (len(self.train_dataloader) * dist.get_world_size())
                 correct_mean = total_correct.item() / total_problem.item()
+                miou_mean = miou.item() / (len(self.train_dataloader) * dist.get_world_size())
 
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Loss Total : {loss_mean:.4f}")
                 print(f"Epoch {epoch + 1}/{self.max_epoch} - Accuracy : {correct_mean:.4f}")
+                print(f"Epoch {epoch + 1}/{self.max_epoch} - MIOU : {miou_mean:.4f}")
 
                 if self.use_tensorboard:
                     wandb.log({"Train loss total": loss_mean}, step=epoch + 1)
                     wandb.log({"Train accuracy": correct_mean}, step=epoch + 1)
+                    wandb.log({"Train miou": miou_mean}, step=epoch + 1)
 
             if (epoch + 1) % self.val_epoch == 0:
                 self.transformer.module.eval()
                 total_loss = torch.Tensor([0.0]).to(self.device)
                 total_correct = torch.Tensor([0.0]).to(self.device)
                 total_problem = torch.Tensor([0.0]).to(self.device)
+                total_miou = torch.Tensor([0.0]).to(self.device)
 
                 with torch.no_grad():
                     for data in self.val_dataloader:
@@ -277,25 +310,31 @@ class Trainer:
                         dice = self.dice_loss(output.detach(), output_img.detach())
                         loss = dice
                         correct, problem = self.correct_data(output.detach(), output_img.detach())
+                        _, _, _, _, miou = self.compute_metrics(output.detach(), output_img.detach())
 
                         dist.all_reduce(loss, op=dist.ReduceOp.SUM)
                         dist.all_reduce(torch.tensor(correct), op=dist.ReduceOp.SUM)
                         dist.all_reduce(torch.tensor(problem), op=dist.ReduceOp.SUM)
+                        dist.all_reduce(miou, op=dist.ReduceOp.SUM)
 
                         total_loss += loss
                         total_correct += correct
                         total_problem += problem
+                        total_miou += miou
 
                     if self.local_rank == 0:
                         loss_mean = total_loss.item() / (len(self.val_dataloader) * dist.get_world_size())
                         correct_mean = total_correct.item() / total_problem.item()
+                        miou_mean = total_miou.item() / (len(self.val_dataloader) * dist.get_world_size())
 
                         print(f"Epoch {epoch + 1}/{self.max_epoch} - Validation Loss Total : {loss_mean:.4f}")
                         print(f"Epoch {epoch + 1}/{self.max_epoch} - Validation Accuracy : {correct_mean:.4f}")
+                        print(f"Epoch {epoch + 1}/{self.max_epoch} - Validation MIOU : {miou_mean:.4f}")
 
                         if self.use_tensorboard:
                             wandb.log({"Validation loss total": loss_mean}, step=epoch + 1)
                             wandb.log({"Validation accuracy": correct_mean}, step=epoch + 1)
+                            wandb.log({"Validation miou": miou_mean}, step=epoch + 1)
 
                             loss_total = loss_mean
                             if min_loss > loss_total:
