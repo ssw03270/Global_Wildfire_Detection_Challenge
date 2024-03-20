@@ -91,6 +91,32 @@ class Trainer:
                                           lr=self.lr,
                                           betas=(0.9, 0.98))
 
+    def dice_loss(self, pred, trg):
+        """
+        Calculates the Dice loss.
+
+        Parameters:
+        - pred (Tensor): Predictions from the model. Assumes binary class predictions.
+        - trg (Tensor): Target values (ground truth).
+
+        Returns:
+        - Tensor: The computed Dice loss.
+        """
+        # Flatten the tensors to make the calculation easier
+        pred_flat = pred.view(-1)
+        trg_flat = trg.view(-1)
+
+        # Calculate intersection and union
+        intersection = (pred_flat * trg_flat).sum()
+        union = pred_flat.sum() + trg_flat.sum()
+
+        # Calculate Dice score and then Dice loss
+        smooth = 1.0
+        dice_score = (2. * intersection + smooth) / (union + smooth)
+        dice_loss = 1 - dice_score
+
+        return dice_loss
+
     def focal_loss(self, pred, trg, alpha=0.25, gamma=2.0):
         """
         Calculates the focal loss.
@@ -187,9 +213,10 @@ class Trainer:
 
                 output = self.transformer(input_img)
 
-                bce = self.cross_entropy_loss(output, output_img.detach())
-                focal = self.focal_loss(output, output_img.detach())
-                loss = bce + focal
+                # bce = self.cross_entropy_loss(output, output_img.detach())
+                # focal = self.focal_loss(output, output_img.detach())
+                dice = self.dice_loss(output, output_img.detach())
+                loss = dice
                 correct, problem = self.correct_data(output.detach(), output_img.detach())
 
                 loss.backward()
@@ -230,9 +257,10 @@ class Trainer:
 
                         output = self.transformer(input_img)
 
-                        bce = self.cross_entropy_loss(output.detach(), output_img.detach())
-                        focal = self.focal_loss(output.detach(), output_img.detach())
-                        loss = bce + focal
+                        # bce = self.cross_entropy_loss(output.detach(), output_img.detach())
+                        # focal = self.focal_loss(output.detach(), output_img.detach())
+                        dice = self.dice_loss(output.detach(), output_img.detach())
+                        loss = dice
                         correct, problem = self.correct_data(output.detach(), output_img.detach())
 
                         dist.all_reduce(loss, op=dist.ReduceOp.SUM)
