@@ -71,6 +71,7 @@ if __name__ == '__main__':
 
             key_name = data['key_name'][0]
             y_predict[key_name] = output
+            print(output)
 
     joblib.dump(y_predict, './y_pred.pkl')
 

@@ -4,6 +4,42 @@ import numpy as np
 from einops import rearrange, repeat
 
 
+class UpConv(nn.Module):
+    """
+    U-Net 디코더의 업샘플링과 컨볼루션을 결합한 모듈
+    """
+
+    def __init__(self, in_channels, out_channels):
+        super(UpConv, self).__init__()
+        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+
+    def forward(self, x1, x2):
+        # x1: 디코더에서의 입력, x2: 인코더에서의 스킵 연결 입력
+        x1 = self.up(x1)
+        # 입력과 스킵 연결을 결합
+        x = torch.cat([x2, x1], dim=1)
+        x = torch.relu(self.conv(x))
+        return x
+
+
+class UNetDecoder(nn.Module):
+    """
+    U-Net 아키텍처의 디코더 부분
+    """
+
+    def __init__(self, channels):
+        super(UNetDecoder, self).__init__()
+        # channels: 디코더 각 단계에서의 채널 수를 나타내는 리스트
+        self.upconvs = nn.ModuleList([UpConv(channels[i], channels[i + 1]) for i in range(len(channels) - 1)])
+
+    def forward(self, features):
+        # features: 인코더의 각 레이어 출력과 최초의 디코더 입력을 포함한 리스트
+        x = features[-1]  # 디코더의 최초 입력
+        for i in range(len(self.upconvs)):
+            x = self.upconvs[i](x, features[-i - 2])
+        return x
+
 class CyclicShift(nn.Module):
     def __init__(self, displacement):
         super().__init__()
@@ -210,22 +246,25 @@ class SwinTransformer(nn.Module):
                                   downscaling_factor=downscaling_factors[3], num_heads=heads[3], head_dim=head_dim,
                                   window_size=window_size, relative_pos_embedding=relative_pos_embedding)
 
+        self.decoder = UNetDecoder([768, 384, 192, 96])
         self.img_size = img_size
 
-        self.mlp_head = nn.Sequential(
-            nn.LayerNorm(hidden_dim * 8),
-            nn.Linear(hidden_dim * 8, self.img_size * self.img_size)
-        )
+        self.upsample = nn.Upsample(size=(self.img_size, self.img_size), mode='bilinear', align_corners=True)
+        self.conv1 = nn.Conv2d(in_channels=96, out_channels=96, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=96, out_channels=1, kernel_size=3, stride=1, padding=1)
 
     def forward(self, img):
         img = img.permute(0, 3, 1, 2)
-        x = self.stage1(img)
-        x = self.stage2(x)
-        x = self.stage3(x)
-        x = self.stage4(x)
+        x1 = self.stage1(img)
+        x2 = self.stage2(x1)
+        x3 = self.stage3(x2)
+        x4 = self.stage4(x3)
 
-        x = x.mean(dim=[2, 3])
-        x = self.mlp_head(x)
+        x = self.decoder([x1, x2, x3, x4])
+
+        x = self.upsample(x)
+        x = torch.relu(self.conv1(x))
+        x = self.conv2(x)
 
         x = x.reshape(x.shape[0], 1, self.img_size, self.img_size)
         x = x.permute(0, 2, 3, 1)

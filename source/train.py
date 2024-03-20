@@ -82,7 +82,7 @@ class Trainer:
             img_size=256,
             head_dim=32,
             window_size=8,
-            downscaling_factors=(4, 2, 2, 2),
+            downscaling_factors=(2, 2, 2, 2),
             relative_pos_embedding=True
         ).to(device=self.device)
         self.transformer = nn.parallel.DistributedDataParallel(self.transformer, device_ids=[local_rank])
