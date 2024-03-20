@@ -151,12 +151,12 @@ class Trainer:
             # if self.local_rank == 0:
             #     wandb.watch(self.transformer.module, log='all')
 
-        for epoch in tqdm(range(epoch_start, self.max_epoch)):
+        for epoch in range(epoch_start, self.max_epoch):
             total_loss = torch.Tensor([0.0]).to(self.device)
             total_correct = torch.Tensor([0.0]).to(self.device)
             total_problem = torch.Tensor([0.0]).to(self.device)
 
-            for data in self.train_dataloader:
+            for data in tqdm(self.train_dataloader):
                 self.optimizer.zero_grad()
 
                 input_img = data['input_img'].to(device=self.device)
