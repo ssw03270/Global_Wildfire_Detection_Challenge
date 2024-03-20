@@ -106,11 +106,9 @@ class Trainer:
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps,
                                                     num_training_steps=num_train_steps)
 
-    def compute_metrics(state, image, mask):
-        logits = state(image)
-
-        preds = torch.sigmoid(logits) > 0.5
-        labels = mask
+    def compute_metrics(self, pred, trg):
+        preds = (pred >= 0.5).float()
+        labels = trg
 
         smooth = 1e-6
 
